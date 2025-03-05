@@ -11,25 +11,46 @@ import java.util.Optional;
 
 /**
  * Implements an adaptive traffic light strategy that prioritizes the busiest opposite-direction roads.
+ * The green light duration dynamically adjusts based on traffic intensity and automatically switches
+ * when the current roads are empty.
  */
 public class AdaptiveTrafficLightStrategy implements TrafficLightStrategy {
+    private static final int MAX_GREEN_DURATION = 10;  // Maximum steps before forcing a switch
+    private Direction currentGreenDirection = null;
+    private int stepsElapsed = 0;
 
     @Override
     public void updateLights(Intersection intersection) {
         Map<Direction, Road> roads = intersection.getAllRoads();
 
-        // Set all traffic lights to RED
+        // Check if current green roads are still occupied
+        if (currentGreenDirection != null && stepsElapsed < MAX_GREEN_DURATION) {
+            Road roadA = roads.get(currentGreenDirection);
+            Road roadB = roads.get(getOppositeDirection(currentGreenDirection));
+
+            // If vehicles are still present, keep the light green
+            if (roadA.hasVehicles() || roadB.hasVehicles()) {
+                stepsElapsed++;
+                return;
+            }
+        }
+
+        // Reset step counter when changing lights
+        stepsElapsed = 0;
+
+        // Set all lights to RED
         roads.values().forEach(road -> road.getTrafficLight().setState(LightState.RED));
 
-        // Determine which opposite-direction pair is the busiest
+        // Find the busiest opposite-direction pair
         Optional<Direction> busiestPair = roads.keySet().stream()
                 .max(Comparator.comparingInt(dir -> roads.get(dir).getWaitingVehicles().size() +
                         roads.get(getOppositeDirection(dir)).getWaitingVehicles().size()));
 
-        // Set the green light for the selected pair
+        // Set the new green light and start counting steps
         busiestPair.ifPresent(direction -> {
             roads.get(direction).getTrafficLight().setState(LightState.GREEN);
             roads.get(getOppositeDirection(direction)).getTrafficLight().setState(LightState.GREEN);
+            currentGreenDirection = direction;
         });
     }
 
