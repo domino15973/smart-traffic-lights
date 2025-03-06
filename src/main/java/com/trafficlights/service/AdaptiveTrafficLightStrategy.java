@@ -23,12 +23,12 @@ public class AdaptiveTrafficLightStrategy implements TrafficLightStrategy {
     public void updateLights(Intersection intersection) {
         Map<Direction, Road> roads = intersection.getAllRoads();
 
-        // Check if current green roads are still occupied
+        // If current green roads are still occupied, continue
         if (currentGreenDirection != null && stepsElapsed < MAX_GREEN_DURATION) {
             Road roadA = roads.get(currentGreenDirection);
             Road roadB = roads.get(getOppositeDirection(currentGreenDirection));
 
-            // If vehicles are still present, keep the light green
+            // Keep green if vehicles are still present
             if (roadA.hasVehicles() || roadB.hasVehicles()) {
                 stepsElapsed++;
                 return;
@@ -45,6 +45,13 @@ public class AdaptiveTrafficLightStrategy implements TrafficLightStrategy {
         Optional<Direction> busiestPair = roads.keySet().stream()
                 .max(Comparator.comparingInt(dir -> roads.get(dir).getWaitingVehicles().size() +
                         roads.get(getOppositeDirection(dir)).getWaitingVehicles().size()));
+
+        // If no vehicles remain, keep all lights red
+        if (busiestPair.isEmpty() || (roads.get(busiestPair.get()).getWaitingVehicles().isEmpty() &&
+                roads.get(getOppositeDirection(busiestPair.get())).getWaitingVehicles().isEmpty())) {
+            currentGreenDirection = null;
+            return;
+        }
 
         // Set the new green light and start counting steps
         busiestPair.ifPresent(direction -> {
